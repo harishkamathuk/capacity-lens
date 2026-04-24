@@ -4,6 +4,7 @@ from datetime import date
 from typing import List, Dict
 
 import pandas as pd
+import altair as alt
 import streamlit as st
 
 
@@ -617,9 +618,19 @@ def draw_overview(df_month: pd.DataFrame, selected_month: str):
 
     with left:
         st.subheader("Most loaded people")
-        chart_data = pc.set_index("ASSIGNED_TO")[["UTILISATION_PCT"]]
-        st.bar_chart(chart_data)
-        st.dataframe(
+        chart_data = pc[["ASSIGNED_TO", "UTILISATION_PCT"]].rename(
+            columns={"ASSIGNED_TO": "DM Lead", "UTILISATION_PCT": "Utilisation %"}
+        )
+        light_bar_chart(
+            chart_data,
+            x_col="Utilisation %",
+            y_col="DM Lead",
+            x_title="Utilisation %",
+            y_title="DM Lead",
+            horizontal=True,
+            height=300,
+        )
+        people_display = (
             pc[["ASSIGNED_TO", "ALLOCATED_HOURS", "CAPACITY_HOURS", "UTILISATION_PCT", "CAPACITY_STATUS"]]
             .rename(
                 columns={
@@ -629,7 +640,10 @@ def draw_overview(df_month: pd.DataFrame, selected_month: str):
                     "UTILISATION_PCT": "Utilisation %",
                     "CAPACITY_STATUS": "Status",
                 }
-            ),
+            )
+        )
+        st.dataframe(
+            light_dataframe_style(people_display),
             use_container_width=True,
             hide_index=True,
         )
@@ -642,15 +656,27 @@ def draw_overview(df_month: pd.DataFrame, selected_month: str):
             .sort_values("HOURS", ascending=False)
         )
         theme["SHARE_OF_CAPACITY_PCT"] = (theme["HOURS"] / max(k["total_capacity_hours"], 1) * 100).round(0)
-        st.bar_chart(theme.set_index("THEME")[["SHARE_OF_CAPACITY_PCT"]])
+        theme_chart = theme[["THEME", "SHARE_OF_CAPACITY_PCT"]].rename(
+            columns={"THEME": "Theme", "SHARE_OF_CAPACITY_PCT": "% of capacity"}
+        )
+        light_bar_chart(
+            theme_chart,
+            x_col="% of capacity",
+            y_col="Theme",
+            x_title="% of capacity",
+            y_title="Theme",
+            horizontal=True,
+            height=300,
+        )
+        theme_display = theme.rename(
+            columns={
+                "THEME": "Theme",
+                "HOURS": "Allocated h",
+                "SHARE_OF_CAPACITY_PCT": "% of capacity",
+            }
+        )
         st.dataframe(
-            theme.rename(
-                columns={
-                    "THEME": "Theme",
-                    "HOURS": "Allocated h",
-                    "SHARE_OF_CAPACITY_PCT": "% of capacity",
-                }
-            ),
+            light_dataframe_style(theme_display),
             use_container_width=True,
             hide_index=True,
         )
@@ -709,6 +735,76 @@ def style_capacity_cells(val):
     return ""
 
 
+def light_dataframe_style(df: pd.DataFrame):
+    """Force readable table styling regardless of Streamlit/browser theme."""
+    return (
+        df.style
+        .set_table_styles(
+            [
+                {"selector": "table", "props": [("background-color", "#FFFFFF"), ("color", "#0F172A")]},
+                {"selector": "thead th", "props": [("background-color", "#F1F5F9"), ("color", "#0F172A"), ("font-weight", "700"), ("border-color", "#CBD5E1")]},
+                {"selector": "tbody td", "props": [("background-color", "#FFFFFF"), ("color", "#0F172A"), ("border-color", "#E5E7EB")]},
+                {"selector": "tbody th", "props": [("background-color", "#FFFFFF"), ("color", "#0F172A"), ("border-color", "#E5E7EB")]},
+            ]
+        )
+    )
+
+
+def light_bar_chart(
+    data: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    *,
+    x_title: str,
+    y_title: str,
+    horizontal: bool = False,
+    height: int = 320,
+):
+    """Altair chart with explicit light theme, avoiding Streamlit dark-mode inheritance."""
+    chart_data = data.copy()
+
+    if horizontal:
+        chart = (
+            alt.Chart(chart_data)
+            .mark_bar(color="#00818A")
+            .encode(
+                y=alt.Y(f"{y_col}:N", sort="-x", title=y_title, axis=alt.Axis(labelColor="#0F172A", titleColor="#0F172A")),
+                x=alt.X(f"{x_col}:Q", title=x_title, axis=alt.Axis(labelColor="#0F172A", titleColor="#0F172A", gridColor="#E5E7EB")),
+                tooltip=[alt.Tooltip(f"{y_col}:N"), alt.Tooltip(f"{x_col}:Q", format=".0f")],
+            )
+        )
+    else:
+        chart = (
+            alt.Chart(chart_data)
+            .mark_bar(color="#00818A")
+            .encode(
+                x=alt.X(f"{x_col}:N", sort="-y", title=x_title, axis=alt.Axis(labelColor="#0F172A", titleColor="#0F172A", labelAngle=-35)),
+                y=alt.Y(f"{y_col}:Q", title=y_title, axis=alt.Axis(labelColor="#0F172A", titleColor="#0F172A", gridColor="#E5E7EB")),
+                tooltip=[alt.Tooltip(f"{x_col}:N"), alt.Tooltip(f"{y_col}:Q", format=".0f")],
+            )
+        )
+
+    chart = chart.properties(height=height).configure_view(
+        fill="#FFFFFF",
+        stroke="#E5E7EB",
+    ).configure_axis(
+        labelColor="#0F172A",
+        titleColor="#0F172A",
+        gridColor="#E5E7EB",
+        domainColor="#CBD5E1",
+        tickColor="#CBD5E1",
+    ).configure_legend(
+        labelColor="#0F172A",
+        titleColor="#0F172A",
+    ).configure_title(
+        color="#0F172A",
+    ).configure(background="#FFFFFF")
+
+    st.altair_chart(chart, use_container_width=True)
+
+
+
+
 def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_month: str):
     mode = st.radio(
         "Board mode",
@@ -746,7 +842,7 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
         display = matrix.rename(columns=rename_cols)
 
         st.dataframe(
-            display.style.map(style_capacity_cells, subset=["Utilisation %"]).format(precision=0),
+            light_dataframe_style(display).map(style_capacity_cells, subset=["Utilisation %"]).format(precision=0),
             use_container_width=True,
             height=460,
         )
@@ -798,7 +894,7 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
         month_matrix = pd.DataFrame(rows)
         month_cols = REPORTING_MONTHS["MONTH_LABEL"].tolist()
         st.dataframe(
-            month_matrix.style.map(style_capacity_cells, subset=month_cols).format(precision=0),
+            light_dataframe_style(month_matrix).map(style_capacity_cells, subset=month_cols).format(precision=0),
             use_container_width=True,
             height=360,
             hide_index=True,
@@ -853,7 +949,7 @@ def draw_project_detail(df_month: pd.DataFrame):
             "SOLIDATUS_IMPACT_FLAG": "Solidatus",
         }
     )
-    st.dataframe(display, use_container_width=True, hide_index=True)
+    st.dataframe(light_dataframe_style(display), use_container_width=True, hide_index=True)
 
 
 def inject_brand_css():
@@ -1010,6 +1106,39 @@ def inject_brand_css():
             }}
             .brand-note * {{
                 color: #334155 !important;
+            }}
+
+
+            /* Form controls/selects: prevent dark browser/theme inheritance */
+            div[data-baseweb="select"] > div,
+            div[data-baseweb="input"] > div,
+            textarea,
+            input {{
+                background-color: #FFFFFF !important;
+                color: #0F172A !important;
+                border-color: #CBD5E1 !important;
+            }}
+            div[data-baseweb="select"] span,
+            div[data-baseweb="select"] div,
+            div[data-baseweb="popover"] div,
+            div[data-baseweb="menu"] div {{
+                color: #0F172A !important;
+            }}
+            div[data-baseweb="popover"] {{
+                background-color: #FFFFFF !important;
+            }}
+            ul[role="listbox"] {{
+                background-color: #FFFFFF !important;
+                color: #0F172A !important;
+            }}
+
+            /* Dataframe/chart containers */
+            [data-testid="stDataFrame"],
+            [data-testid="stTable"],
+            [data-testid="stVegaLiteChart"] {{
+                background: #FFFFFF !important;
+                color: #0F172A !important;
+                border-radius: 10px;
             }}
 
             .enterprise-footer {{
