@@ -27,6 +27,14 @@ import streamlit as st
 HOURS_PER_DAY = 7
 PROJECT_ALLOCATION_POLICY = 0.70
 
+BRAND_PRIMARY = "#470054"
+BRAND_SECONDARY = "#00818A"
+BRAND_SURFACE = "#F8FAFC"
+BRAND_BORDER = "rgba(71, 0, 84, 0.14)"
+APP_NAME = "Capacity Lens"
+APP_SUBTITLE = "Project demand vs Data Management capacity"
+APP_VERSION = "v0.1 prototype"
+
 REPORTING_MONTHS = pd.DataFrame(
     [
         {"REPORTING_YEAR": 2026, "REPORTING_MONTH": 1, "MONTH_LABEL": "Jan 2026", "WORKING_DAYS": 22},
@@ -738,7 +746,6 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
         display = matrix.rename(columns=rename_cols)
 
         st.dataframe(
-            # display.style.applymap(style_capacity_cells, subset=["Utilisation %"]).format(precision=0),
             display.style.map(style_capacity_cells, subset=["Utilisation %"]).format(precision=0),
             use_container_width=True,
             height=460,
@@ -791,7 +798,6 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
         month_matrix = pd.DataFrame(rows)
         month_cols = REPORTING_MONTHS["MONTH_LABEL"].tolist()
         st.dataframe(
-            # month_matrix.style.applymap(style_capacity_cells, subset=month_cols).format(precision=0),
             month_matrix.style.map(style_capacity_cells, subset=month_cols).format(precision=0),
             use_container_width=True,
             height=360,
@@ -850,25 +856,164 @@ def draw_project_detail(df_month: pd.DataFrame):
     st.dataframe(display, use_container_width=True, hide_index=True)
 
 
-def main():
-    st.set_page_config(
-        page_title="DM Capacity",
-        layout="wide",
-        initial_sidebar_state="expanded",
-    )
-
+def inject_brand_css():
     st.markdown(
-        """
+        f"""
         <style>
-        .block-container { padding-top: 1.25rem; }
-        [data-testid="stMetricValue"] { font-size: 1.7rem; }
+            #MainMenu {{ visibility: hidden; }}
+            .stDeployButton {{ display: none; }}
+            footer {{ visibility: hidden; }}
+
+            .block-container {{
+                padding-top: 0rem;
+                padding-left: 1rem;
+                padding-right: 1rem;
+                max-width: none;
+            }}
+
+            .enterprise-header {{
+                background: {BRAND_PRIMARY};
+                color: white;
+                padding: 1.25rem 1.75rem;
+                margin: -1rem -1rem 1.5rem -1rem;
+                border-bottom: 4px solid {BRAND_SECONDARY};
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+            }}
+
+            .enterprise-logo {{
+                background: white;
+                color: {BRAND_PRIMARY};
+                padding: 0.45rem 0.65rem;
+                border-radius: 10px;
+                font-size: 1.55rem;
+                line-height: 1;
+                font-weight: 800;
+            }}
+
+            .enterprise-title {{ flex: 1; }}
+            .enterprise-title h1 {{ margin: 0; font-size: 1.55rem; font-weight: 800; }}
+            .enterprise-subtitle {{ margin: 0.2rem 0 0 0; font-size: 0.92rem; opacity: 0.86; }}
+            .version-badge {{
+                background: {BRAND_SECONDARY};
+                color: white;
+                padding: 0.30rem 0.80rem;
+                border-radius: 999px;
+                font-size: 0.78rem;
+                font-weight: 700;
+                white-space: nowrap;
+            }}
+
+            h2, h3 {{ color: {BRAND_PRIMARY}; }}
+            div[data-testid="stMetric"] {{
+                background: white;
+                border-left: 4px solid {BRAND_PRIMARY};
+                border-radius: 10px;
+                padding: 0.85rem 0.95rem;
+                box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
+                border-top: 1px solid {BRAND_BORDER};
+                border-right: 1px solid {BRAND_BORDER};
+                border-bottom: 1px solid {BRAND_BORDER};
+            }}
+            [data-testid="stMetricValue"] {{ font-size: 1.7rem; }}
+            [data-testid="stMetricDelta"] {{ font-size: 0.82rem; }}
+
+            .stTabs [data-baseweb="tab-list"] {{ gap: 8px; }}
+            .stTabs [data-baseweb="tab"] {{
+                height: 46px;
+                padding: 0 22px;
+                border-radius: 8px 8px 0 0;
+                font-weight: 650;
+            }}
+            .stTabs [aria-selected="true"] {{
+                background-color: {BRAND_PRIMARY} !important;
+                color: white !important;
+            }}
+
+            section[data-testid="stSidebar"] {{
+                background: linear-gradient(180deg, rgba(71,0,84,0.10), rgba(0,129,138,0.06));
+            }}
+            section[data-testid="stSidebar"] h1,
+            section[data-testid="stSidebar"] h2,
+            section[data-testid="stSidebar"] h3 {{ color: {BRAND_PRIMARY}; }}
+
+            .brand-note {{
+                background: {BRAND_SURFACE};
+                border: 1px solid {BRAND_BORDER};
+                border-left: 4px solid {BRAND_SECONDARY};
+                padding: 0.9rem 1rem;
+                border-radius: 10px;
+                margin-bottom: 1rem;
+                color: #334155;
+                font-size: 0.94rem;
+            }}
+
+            .enterprise-footer {{
+                background: {BRAND_SECONDARY};
+                color: white;
+                padding: 0.9rem 1.5rem;
+                margin: 2rem -1rem -1rem -1rem;
+                border-top: 3px solid {BRAND_PRIMARY};
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.82rem;
+            }}
         </style>
         """,
         unsafe_allow_html=True,
     )
 
-    st.title("DM Capacity")
-    st.caption("Wave 1 · Project work · Data Management team · Snowsight-ready Streamlit prototype")
+
+def render_brand_header():
+    st.markdown(
+        f"""
+        <div class="enterprise-header">
+            <div class="enterprise-logo">CL</div>
+            <div class="enterprise-title">
+                <h1>{APP_NAME}</h1>
+                <p class="enterprise-subtitle">{APP_SUBTITLE}</p>
+            </div>
+            <div class="version-badge">{APP_VERSION}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_brand_footer():
+    st.markdown(
+        f"""
+        <div class="enterprise-footer">
+            <div><strong>{APP_NAME}</strong> · Data Management planning prototype</div>
+            <div>Project-only Wave 1 · Snowflake semantic layer ready</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def main():
+    st.set_page_config(
+        page_title=APP_NAME,
+        page_icon="📊",
+        layout="wide",
+        initial_sidebar_state="expanded",
+    )
+
+    inject_brand_css()
+    render_brand_header()
+
+    st.markdown(
+        """
+        <div class="brand-note">
+            <strong>Wave 1 scope:</strong> project work only. This view is designed to show where project demand has consumed available Data Management capacity.
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     df = add_project_key(load_mock_semantic_data())
 
@@ -884,6 +1029,8 @@ def main():
 
     with tab3:
         draw_project_detail(df_month)
+
+    render_brand_footer()
 
 
 if __name__ == "__main__":
