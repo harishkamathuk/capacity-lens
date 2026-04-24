@@ -738,7 +738,8 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
         display = matrix.rename(columns=rename_cols)
 
         st.dataframe(
-            display.style.applymap(style_capacity_cells, subset=["Utilisation %"]).format(precision=0),
+            # display.style.applymap(style_capacity_cells, subset=["Utilisation %"]).format(precision=0),
+            display.style.map(style_capacity_cells, subset=["Utilisation %"]).format(precision=0)
             use_container_width=True,
             height=460,
         )
@@ -790,7 +791,8 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
         month_matrix = pd.DataFrame(rows)
         month_cols = REPORTING_MONTHS["MONTH_LABEL"].tolist()
         st.dataframe(
-            month_matrix.style.applymap(style_capacity_cells, subset=month_cols).format(precision=0),
+            # month_matrix.style.applymap(style_capacity_cells, subset=month_cols).format(precision=0),
+            month_matrix.style.map(style_capacity_cells, subset=month_cols).format(precision=0)
             use_container_width=True,
             height=360,
             hide_index=True,
