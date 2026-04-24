@@ -2,6 +2,7 @@
 import math
 from datetime import date
 from typing import List, Dict
+from html import escape
 
 import pandas as pd
 import altair as alt
@@ -805,6 +806,46 @@ def light_bar_chart(
 
 
 
+
+def util_class(pct: float) -> str:
+    if pct > 100:
+        return "bad"
+    if pct > 80:
+        return "warn"
+    if pct > 0:
+        return "ok"
+    return ""
+
+
+def render_html_table(headers: List[str], rows: List[List[str]]) -> None:
+    header_html = "".join(f"<th>{escape(str(h))}</th>" for h in headers)
+    row_html = ""
+    for row in rows:
+        row_html += "<tr>" + "".join(str(cell) for cell in row) + "</tr>"
+    st.markdown(
+        f"""
+        <div class="table-scroll">
+            <table class="capacity-board-table">
+                <thead><tr>{header_html}</tr></thead>
+                <tbody>{row_html}</tbody>
+            </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def td(value, cls: str = "") -> str:
+    class_attr = f' class="{cls}"' if cls else ""
+    return f"<td{class_attr}>{escape(str(value))}</td>"
+
+
+def td_num(value, cls: str = "") -> str:
+    full_cls = "num" if not cls else f"num {cls}"
+    return td(value, full_cls)
+
+
+
 def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_month: str):
     mode = st.radio(
         "Board mode",
@@ -814,8 +855,13 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
     )
 
     if mode == "By project":
-        st.subheader(f"Capacity Board — by project ({selected_month})")
-        st.caption("Person × project allocation in hours. Total / Cap uses project allocation capacity.")
+        st.markdown(
+            f"""
+            <div class="board-heading">Capacity Board — by project ({escape(selected_month)})</div>
+            <div class="board-caption">Person × project allocation in hours. Total / Cap uses project allocation capacity.</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
         matrix = df_month.pivot_table(
             index="ASSIGNED_TO",
@@ -825,7 +871,6 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
             fill_value=0,
         )
 
-        # Ensure every advisor appears.
         matrix = matrix.reindex(ADVISORS, fill_value=0)
 
         pc = person_capacity(df_month, selected_month).set_index("ASSIGNED_TO")
@@ -833,41 +878,50 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
         matrix["Capacity h"] = pc["CAPACITY_HOURS"]
         matrix["Utilisation %"] = (matrix["Total h"] / matrix["Capacity h"] * 100).round(0)
 
-        # Shorten project column labels.
-        rename_cols = {
-            col: shorten(str(col), 28)
-            for col in matrix.columns
-            if col not in ["Total h", "Capacity h", "Utilisation %"]
-        }
-        display = matrix.rename(columns=rename_cols)
+        project_cols = [c for c in matrix.columns if c not in ["Total h", "Capacity h", "Utilisation %"]]
+        headers = ["DM Lead"] + [shorten(str(c), 24) for c in project_cols] + ["Total h", "Capacity h", "Utilisation %"]
 
-        st.dataframe(
-            light_dataframe_style(display).map(style_capacity_cells, subset=["Utilisation %"]).format(precision=0),
-            use_container_width=True,
-            height=460,
-        )
+        rows = []
+        for advisor, row in matrix.iterrows():
+            util_pct = float(row["Utilisation %"])
+            row_cells = [td(advisor)]
+            for c in project_cols:
+                v = int(row[c])
+                row_cells.append(td_num(v if v > 0 else "·", "muted" if v == 0 else ""))
+            row_cells.append(td_num(int(row["Total h"]), "total-col"))
+            row_cells.append(td_num(f"{row['Capacity h']:.0f}", "total-col"))
+            row_cells.append(td_num(f"{util_pct:.0f}%", util_class(util_pct)))
+            rows.append(row_cells)
 
-        totals = pd.DataFrame(
-            {
-                "Metric": ["Allocated project hours", "Available project hours", "Utilisation %"],
-                "Value": [
-                    f"{matrix['Total h'].sum():.0f}h",
-                    f"{matrix['Capacity h'].sum():.0f}h",
-                    f"{matrix['Total h'].sum() / max(matrix['Capacity h'].sum(), 1) * 100:.0f}%",
-                ],
-            }
-        )
-        st.dataframe(totals, use_container_width=True, hide_index=True)
+        total_h = matrix["Total h"].sum()
+        capacity_h = matrix["Capacity h"].sum()
+        util_total = total_h / max(capacity_h, 1) * 100
+
+        total_cells = [td("PROJECT TOTAL", "total-col")]
+        for c in project_cols:
+            total_cells.append(td_num(int(matrix[c].sum()), "total-col"))
+        total_cells.append(td_num(int(total_h), "total-col"))
+        total_cells.append(td_num(f"{capacity_h:.0f}", "total-col"))
+        total_cells.append(td_num(f"{util_total:.0f}%", util_class(util_total)))
+        rows.append(total_cells)
+
+        render_html_table(headers, rows)
 
     else:
-        st.subheader("Capacity Board — by month (6mo)")
-        st.caption("Person × month utilisation. Cell values are percentages; hours are shown underneath in the expanded detail.")
+        st.markdown(
+            """
+            <div class="board-heading">Capacity Board — by month (6mo)</div>
+            <div class="board-caption">Person × month utilisation. Cell values are percentages; tooltip-level hours are shown in the detail table below.</div>
+            """,
+            unsafe_allow_html=True,
+        )
 
+        headers = ["DM Lead"] + REPORTING_MONTHS["MONTH_LABEL"].tolist()
         rows = []
         detail_rows = []
 
         for advisor in ADVISORS:
-            row = {"DM Lead": advisor}
+            row_cells = [td(advisor)]
             for _, m in REPORTING_MONTHS.iterrows():
                 month_label = m["MONTH_LABEL"]
                 month_df = df_all[
@@ -879,7 +933,7 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
                 capacity = capacity_hours_for_month(int(m["WORKING_DAYS"]))
                 allocated = month_df["ALLOCATED_EFFORT_HOURS_THIS_MONTH"].sum()
                 pct = allocated / max(capacity, 1) * 100
-                row[month_label] = round(pct, 0)
+                row_cells.append(td_num(f"{pct:.0f}%", util_class(pct)))
                 detail_rows.append(
                     {
                         "DM Lead": advisor,
@@ -889,19 +943,13 @@ def draw_capacity_board(df_all: pd.DataFrame, df_month: pd.DataFrame, selected_m
                         "Utilisation %": round(pct, 0),
                     }
                 )
-            rows.append(row)
+            rows.append(row_cells)
 
-        month_matrix = pd.DataFrame(rows)
-        month_cols = REPORTING_MONTHS["MONTH_LABEL"].tolist()
-        st.dataframe(
-            light_dataframe_style(month_matrix).map(style_capacity_cells, subset=month_cols).format(precision=0),
-            use_container_width=True,
-            height=360,
-            hide_index=True,
-        )
+        render_html_table(headers, rows)
 
         with st.expander("Show monthly hour detail"):
-            st.dataframe(pd.DataFrame(detail_rows), use_container_width=True, hide_index=True)
+            detail_df = pd.DataFrame(detail_rows)
+            st.dataframe(light_dataframe_style(detail_df), use_container_width=True, hide_index=True)
 
     st.caption("Legend: green ≤ 80% of project capacity · amber 81–100% · red > 100%.")
     st.caption("Capacity basis: working days × 7h × 70% project allocation policy.")
@@ -1132,6 +1180,128 @@ def inject_brand_css():
                 color: #0F172A !important;
             }}
 
+
+            /* Main content text defaults */
+            [data-testid="stMainBlockContainer"],
+            [data-testid="stMainBlockContainer"] p,
+            [data-testid="stMainBlockContainer"] span,
+            [data-testid="stMainBlockContainer"] label,
+            [data-testid="stMainBlockContainer"] div {{
+                color: #0F172A !important;
+            }}
+
+            [data-testid="stMainBlockContainer"] h1,
+            [data-testid="stMainBlockContainer"] h2,
+            [data-testid="stMainBlockContainer"] h3,
+            [data-testid="stMainBlockContainer"] h4 {{
+                color: #0F172A !important;
+            }}
+
+            /* Radio controls */
+            div[role="radiogroup"] label,
+            div[role="radiogroup"] span,
+            div[role="radiogroup"] p {{
+                color: #0F172A !important;
+            }}
+
+            div[role="radiogroup"] label {{
+                background: #E2E8F0 !important;
+                border-radius: 8px;
+                padding: 0.25rem 0.5rem;
+            }}
+
+            div[role="radiogroup"] input:checked + div {{
+                color: #FFFFFF !important;
+            }}
+
+            /* Explicit light HTML board/table styling */
+            .capacity-board-table {{
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                background: #FFFFFF;
+                color: #0F172A;
+                border: 1px solid #CBD5E1;
+                border-radius: 10px;
+                overflow: hidden;
+                font-size: 0.86rem;
+            }}
+
+            .capacity-board-table th {{
+                background: #F1F5F9;
+                color: #0F172A !important;
+                font-weight: 750;
+                text-align: left;
+                padding: 0.65rem 0.55rem;
+                border-bottom: 1px solid #CBD5E1;
+                border-right: 1px solid #E2E8F0;
+                white-space: nowrap;
+                position: sticky;
+                top: 0;
+                z-index: 1;
+            }}
+
+            .capacity-board-table td {{
+                background: #FFFFFF;
+                color: #0F172A !important;
+                padding: 0.58rem 0.55rem;
+                border-bottom: 1px solid #E5E7EB;
+                border-right: 1px solid #F1F5F9;
+                white-space: nowrap;
+            }}
+
+            .capacity-board-table .num {{
+                text-align: right;
+                font-variant-numeric: tabular-nums;
+            }}
+
+            .capacity-board-table .muted {{
+                color: #64748B !important;
+            }}
+
+            .capacity-board-table .total-col {{
+                font-weight: 750;
+                background: #F8FAFC;
+            }}
+
+            .capacity-board-table .ok {{
+                background: #DFF7EA !important;
+                color: #065F46 !important;
+                font-weight: 700;
+            }}
+
+            .capacity-board-table .warn {{
+                background: #FDE7B8 !important;
+                color: #92400E !important;
+                font-weight: 700;
+            }}
+
+            .capacity-board-table .bad {{
+                background: #F8B4B4 !important;
+                color: #991B1B !important;
+                font-weight: 800;
+            }}
+
+            .table-scroll {{
+                overflow-x: auto;
+                border-radius: 10px;
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
+            }}
+
+            .board-heading {{
+                color: #0F172A !important;
+                font-size: 1.55rem;
+                font-weight: 800;
+                margin: 1.1rem 0 0.25rem 0;
+            }}
+
+            .board-caption {{
+                color: #475569 !important;
+                font-size: 0.9rem;
+                margin-bottom: 0.75rem;
+            }}
+
             /* Dataframe/chart containers */
             [data-testid="stDataFrame"],
             [data-testid="stTable"],
@@ -1140,6 +1310,13 @@ def inject_brand_css():
                 color: #0F172A !important;
                 border-radius: 10px;
             }}
+
+            .enterprise-header,
+            .enterprise-header *,
+            .version-badge,
+            .version-badge * {
+                color: #FFFFFF !important;
+            }
 
             .enterprise-footer {{
                 background: #FFFFFF;
