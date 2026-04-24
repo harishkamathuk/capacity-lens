@@ -1,3 +1,4 @@
+
 import math
 from datetime import date
 from typing import List, Dict
@@ -1313,9 +1314,9 @@ def inject_brand_css():
             .enterprise-header,
             .enterprise-header *,
             .version-badge,
-            .version-badge * {
+            .version-badge * {{
                 color: #FFFFFF !important;
-            }
+            }}
 
             .enterprise-footer {{
                 background: #FFFFFF;
