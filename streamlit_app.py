@@ -864,102 +864,168 @@ def inject_brand_css():
             .stDeployButton {{ display: none; }}
             footer {{ visibility: hidden; }}
 
+            /* Force a light, readable app surface even if Streamlit Cloud is in dark mode */
+            html, body, [data-testid="stAppViewContainer"], [data-testid="stApp"] {{
+                background: #F8FAFC !important;
+                color: #0F172A !important;
+            }}
+
             .block-container {{
-                padding-top: 0rem;
-                padding-left: 1rem;
-                padding-right: 1rem;
+                padding-top: 1rem;
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
                 max-width: none;
             }}
 
+            /* Streamlit Cloud toolbar can overlap aggressive top banners; keep header inside page flow */
             .enterprise-header {{
                 background: {BRAND_PRIMARY};
                 color: white;
-                padding: 1.25rem 1.75rem;
-                margin: -1rem -1rem 1.5rem -1rem;
+                padding: 1.1rem 1.4rem;
+                margin: 0 0 1rem 0;
                 border-bottom: 4px solid {BRAND_SECONDARY};
+                border-radius: 0 0 12px 12px;
                 display: flex;
                 align-items: center;
                 gap: 1rem;
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+                box-shadow: 0 2px 8px rgba(15, 23, 42, 0.16);
             }}
 
             .enterprise-logo {{
                 background: white;
                 color: {BRAND_PRIMARY};
-                padding: 0.45rem 0.65rem;
+                padding: 0.42rem 0.62rem;
                 border-radius: 10px;
-                font-size: 1.55rem;
+                font-size: 1.15rem;
                 line-height: 1;
                 font-weight: 800;
+                min-width: 2.2rem;
+                text-align: center;
             }}
 
-            .enterprise-title {{ flex: 1; }}
-            .enterprise-title h1 {{ margin: 0; font-size: 1.55rem; font-weight: 800; }}
-            .enterprise-subtitle {{ margin: 0.2rem 0 0 0; font-size: 0.92rem; opacity: 0.86; }}
+            .enterprise-title {{ flex: 1; min-width: 0; }}
+            .enterprise-title h1 {{
+                margin: 0;
+                font-size: 1.45rem;
+                font-weight: 800;
+                color: white !important;
+            }}
+            .enterprise-subtitle {{
+                margin: 0.2rem 0 0 0;
+                font-size: 0.9rem;
+                opacity: 0.92;
+                color: white !important;
+            }}
             .version-badge {{
                 background: {BRAND_SECONDARY};
                 color: white;
-                padding: 0.30rem 0.80rem;
+                padding: 0.28rem 0.75rem;
                 border-radius: 999px;
-                font-size: 0.78rem;
+                font-size: 0.76rem;
                 font-weight: 700;
                 white-space: nowrap;
             }}
 
-            h2, h3 {{ color: {BRAND_PRIMARY}; }}
+            h1, h2, h3, h4, h5, h6, p, span, label, div {{
+                color: inherit;
+            }}
+
+            h2, h3 {{
+                color: #111827 !important;
+            }}
+
+            /* KPI cards: the previous version created white cards with near-white text in dark mode */
             div[data-testid="stMetric"] {{
-                background: white;
+                background: #FFFFFF !important;
+                color: #0F172A !important;
                 border-left: 4px solid {BRAND_PRIMARY};
                 border-radius: 10px;
                 padding: 0.85rem 0.95rem;
                 box-shadow: 0 1px 4px rgba(15, 23, 42, 0.08);
-                border-top: 1px solid {BRAND_BORDER};
-                border-right: 1px solid {BRAND_BORDER};
-                border-bottom: 1px solid {BRAND_BORDER};
+                border-top: 1px solid #E5E7EB;
+                border-right: 1px solid #E5E7EB;
+                border-bottom: 1px solid #E5E7EB;
             }}
-            [data-testid="stMetricValue"] {{ font-size: 1.7rem; }}
-            [data-testid="stMetricDelta"] {{ font-size: 0.82rem; }}
 
-            .stTabs [data-baseweb="tab-list"] {{ gap: 8px; }}
+            div[data-testid="stMetric"] * {{
+                color: #0F172A !important;
+            }}
+
+            [data-testid="stMetricValue"] {{
+                font-size: 1.65rem;
+                font-weight: 800;
+                color: #111827 !important;
+            }}
+            [data-testid="stMetricLabel"] {{
+                color: #475569 !important;
+                font-weight: 650;
+            }}
+            [data-testid="stMetricDelta"] {{
+                font-size: 0.82rem;
+                color: #166534 !important;
+            }}
+            [data-testid="stMetricDelta"] svg {{
+                fill: #16A34A !important;
+            }}
+
+            .stTabs [data-baseweb="tab-list"] {{
+                gap: 6px;
+                border-bottom: 1px solid #CBD5E1;
+            }}
             .stTabs [data-baseweb="tab"] {{
-                height: 46px;
-                padding: 0 22px;
+                height: 42px;
+                padding: 0 18px;
                 border-radius: 8px 8px 0 0;
                 font-weight: 650;
+                color: #334155 !important;
+                background: #E2E8F0;
             }}
             .stTabs [aria-selected="true"] {{
                 background-color: {BRAND_PRIMARY} !important;
                 color: white !important;
             }}
+            .stTabs [aria-selected="true"] * {{
+                color: white !important;
+            }}
 
             section[data-testid="stSidebar"] {{
-                background: linear-gradient(180deg, rgba(71,0,84,0.10), rgba(0,129,138,0.06));
+                background: #F1F5F9 !important;
+                color: #0F172A !important;
+                border-right: 1px solid #E2E8F0;
             }}
-            section[data-testid="stSidebar"] h1,
-            section[data-testid="stSidebar"] h2,
-            section[data-testid="stSidebar"] h3 {{ color: {BRAND_PRIMARY}; }}
+            section[data-testid="stSidebar"] * {{
+                color: #0F172A !important;
+            }}
 
             .brand-note {{
-                background: {BRAND_SURFACE};
-                border: 1px solid {BRAND_BORDER};
+                background: #FFFFFF;
+                border: 1px solid #E5E7EB;
                 border-left: 4px solid {BRAND_SECONDARY};
                 padding: 0.9rem 1rem;
                 border-radius: 10px;
                 margin-bottom: 1rem;
-                color: #334155;
+                color: #334155 !important;
                 font-size: 0.94rem;
+                box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+            }}
+            .brand-note * {{
+                color: #334155 !important;
             }}
 
             .enterprise-footer {{
-                background: {BRAND_SECONDARY};
-                color: white;
-                padding: 0.9rem 1.5rem;
-                margin: 2rem -1rem -1rem -1rem;
-                border-top: 3px solid {BRAND_PRIMARY};
+                background: #FFFFFF;
+                color: #475569 !important;
+                padding: 0.85rem 1.2rem;
+                margin: 2rem 0 0 0;
+                border-top: 3px solid {BRAND_SECONDARY};
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 font-size: 0.82rem;
+                border-radius: 10px 10px 0 0;
+            }}
+            .enterprise-footer * {{
+                color: #475569 !important;
             }}
         </style>
         """,
